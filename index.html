@@ -62,6 +62,57 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-pbxproj-format" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2016/04/15/pbxproj-format/" class="article-date">
+  <time datetime="2016-04-15T11:48:47.000Z" itemprop="datePublished">2016-04-15</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/04/15/pbxproj-format/">学习project.pbxproj</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>作为一名iOS开发人员,project.pbxproj肯定是再熟悉不过的了。<br>但在绝大部分情况下，我们都不需要知道他的具体结构，因为xcode已经帮我们处理了对它的解析。<br>一般情况下，我们都是在git merge的过程中对project.pbxproj的conflict对它稍微关注下。</p>
+<p>然而，我最近突发奇想，现做一些代码生成工具。能给xcode工程添加，删除文件。<br>这样我就得花时间来学习project.pbxproj的文件格式。</p>
+<p>###读取project.pbxproj</p>
+<p>首先，我们来用文本编辑器看一下<br><img src="http://ww1.sinaimg.cn/large/b86f262bgw1f2ycw6p9qyj20um0hntjf.jpg" alt=""></p>
+<p>一看这样的格式就方了，如果没有‘/<em>**</em>/’里面的内容，就是一堆乱码。<br>不过我们也可以粗略的读懂一些内容：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">--archiveVersion&#10;--classes&#10;--objectVersion&#10;--objects</span><br></pre></td></tr></table></figure>
+<p>其中objects是描述文件文件的键值表，并且所有的object都是在objects这一层描述:<br>比如说<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">FF94F20D1C0C2FCF00385517 /* TestProject */ = &#123;&#10;    &#9;&#9;isa = PBXGroup;&#10;&#9;&#9;&#9;children = (&#10;&#9;&#9;&#9;&#9;FF94F2111C0C2FCF00385517 /* AppDelegate.h */,&#10;&#9;&#9;&#9;&#9;FF94F2121C0C2FCF00385517 /* AppDelegate.m */,&#10;&#9;&#9;&#9;&#9;FF94F2141C0C2FCF00385517 /* ViewController.h */,&#10;&#9;&#9;&#9;&#9;FF94F2151C0C2FCF00385517 /* ViewController.m */,&#10;&#9;&#9;&#9;&#9;FF94F2171C0C2FCF00385517 /* Main.storyboard */,&#10;&#9;&#9;&#9;&#9;FF94F21A1C0C2FCF00385517 /* Assets.xcassets */,&#10;&#9;&#9;&#9;&#9;FF94F21C1C0C2FCF00385517 /* LaunchScreen.storyboard */,&#10;&#9;&#9;&#9;&#9;FF94F21F1C0C2FCF00385517 /* Info.plist */,&#10;&#9;&#9;&#9;&#9;FF94F20E1C0C2FCF00385517 /* Supporting Files */,&#10;&#9;&#9;&#9;);&#10;&#9;&#9;&#9;path = TestProject;&#10;&#9;&#9;&#9;sourceTree = &#34;&#60;group&#62;&#34;;&#10;&#9;&#9;&#125;;</span><br></pre></td></tr></table></figure></p>
+<p>这个object是一个PBXGroup对象(通过<code>&quot;isa&quot;</code>字段判断，每个object必有的字段),表明这描述的是一个XCode中的group。<br>FF94F20D1C0C2FCF00385517是这个oject的key，如果其它对象需要引用的话就是用这个key就行。<br>在XCode中group，就是一个文件的聚集对象。在这里我们看到,children是一个array，其中就包含了这些文件。<br>当然，这里只是这些文件描述object的key。我们可以通过全局搜索来看这些文件的描述。FF94F2111C0C2FCF00385517是AppDelegate.h的key。<br>全局搜索之后我们看到如下描述:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">FF94F2111C0C2FCF00385517 /* AppDelegate.h */ = &#123;&#10;        isa = PBXFileReference;&#10;        lastKnownFileType = sourcecode.c.h;&#10;        path = AppDelegate.h;&#10;        sourceTree = &#34;&#60;group&#62;&#34;;&#10;    &#125;;</span><br></pre></td></tr></table></figure>
+<p>于是我们就找到了这个文件的描述。</p>
+<hr>
+<p>到这里，我们已经大概知道了，这个pbxproj文件是以什么样的结构来供xcode来读取的。<br>只不过，这个文件的格式我们好像没见过。</p>
+<p>还好,我是一名面向stackoverflow编程的人:o<br><img src="http://ww4.sinaimg.cn/large/b86f262bgw1f2ycqtd2e4j20cp0go75i.jpg" alt="">,</p>
+<p><a href="/http://stackoverflow.com/a/1455873/5089477/">这个回答</a>,给了我一个好的开始。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">plutil -convert xml1 -o - myproj.xcodeproj/project.pbxproj</span><br></pre></td></tr></table></figure></p>
+<p>通过这个命令来转换成xml格式,虽然不是标准的xml格式，但是比起现在的格式已经是很好能够用工具来阅读了。<br>然而，更好的消息是。无论是现在的格式，还是使用plutil生成的格式,都是可以用[NSDictionary initWithContentFile:]<br>来直接读取到字典中！</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2016/04/15/pbxproj-format/" data-id="cin2zk5190002qe0dfo6wurl0" class="article-share-link">Share</a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+  
     <article id="post-alertview-in-ios9" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
     <a href="/2016/01/15/alertview-in-ios9/" class="article-date">
@@ -129,7 +180,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2016/01/15/alertview-in-ios9/" data-id="cijfouygz0000sy0d5rr2avtl" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2016/01/15/alertview-in-ios9/" data-id="cin2zk50v0000qe0dwk9ef6el" class="article-share-link">Share</a>
       
       
     </footer>
@@ -198,7 +249,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2016/01/04/attribute-cleanup-log/" data-id="cijfouyhc0003sy0dkm9lauuv" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2016/01/04/attribute-cleanup-log/" data-id="cin2zk51e0004qe0d9wcefk93" class="article-share-link">Share</a>
       
       
     </footer>
@@ -250,7 +301,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2016/01/02/第一条博客/" data-id="cijfouyh70001sy0dx04c1te7" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2016/01/02/第一条博客/" data-id="cin2zk5170001qe0dpb3q9bfg" class="article-share-link">Share</a>
       
       
     </footer>
@@ -295,7 +346,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2016/01/01/hello-world/" data-id="cijfouyha0002sy0dsa5gcxtg" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2016/01/01/hello-world/" data-id="cin2zk51b0003qe0dtc0qfecz" class="article-share-link">Share</a>
       
       
     </footer>
@@ -322,7 +373,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/04/">April 2016</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">January 2016</a></li></ul>
     </div>
   </div>
 
@@ -333,6 +384,10 @@
     <h3 class="widget-title">Recents</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2016/04/15/pbxproj-format/">学习project.pbxproj</a>
+          </li>
         
           <li>
             <a href="/2016/01/15/alertview-in-ios9/">IOS 9中的UIAlertView</a>
